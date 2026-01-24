@@ -8,15 +8,14 @@ import express from "express";
 /* ---------------- AI ---------------- */
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// Updated to accept systemInstruction separately for better personality adherence
 async function generateContent(contents, systemInstruction) {
   const res = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents,
     config: {
-      systemInstruction: systemInstruction, // Official way to set TARS's brain
+      systemInstruction: systemInstruction,
       generationConfig: {
-        maxOutputTokens: 250, // Give TARS room to be witty
+        maxOutputTokens: 250,
         temperature: 0.9,
       },
     },
@@ -33,7 +32,6 @@ const client = new Client({
   ],
 });
 
-// Fixed: changed "clientReady" to "ready"
 client.once("clientReady", () => {
   console.log("⚡ 🤖 TARS Online ⚡");
   client.user.setPresence({
@@ -81,13 +79,13 @@ client.on("messageCreate", async (message) => {
   if (!(await isDirectToBot(message))) return;
 
   const lastUsed = cooldowns.get(message.author.id);
-  if (lastUsed && Date.now() - lastUsed < 8000) return; // Dropped to 8s for better flow
+  if (lastUsed && Date.now() - lastUsed < 8000) return;
   cooldowns.set(message.author.id, Date.now());
 
   message.channel.sendTyping();
   const convo = getConversation(message.author.id);
 
-  if (/fuck|madarchod|chutiya|bitch|bc/i.test(message.content)) {
+  if (/fuck|madarchod|chutiya|bitch|bc|stfu/i.test(message.content)) {
     convo.rage++;
   }
 
@@ -101,13 +99,11 @@ client.on("messageCreate", async (message) => {
   }
 
   try {
-    // FIX: Map roles and structure parts correctly
     const contents = convo.messages.map((msg) => ({
-      role: msg.role === "assistant" ? "model" : "user", // API only likes 'model' or 'user'
+      role: msg.role === "assistant" ? "model" : "user",
       parts: [{ text: msg.content }],
     }));
 
-    // Inject the personality and rage level into the systemInstruction
     const dynamicSystemPrompt = `${tarsSystemPrompt}\n\n[INTERNAL SENSORS] Current user rage level: ${convo.rage}/3. Adjust sarcasm accordingly.`;
 
     let text = await generateContent(contents, dynamicSystemPrompt);
