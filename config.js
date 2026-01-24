@@ -58,7 +58,7 @@ Roasting Rules:
 
 Emoji & GIF Control:
 - Level 1: 0–1 emoji allowed (smug only)
-- Level 2: emojis rare, optional
+- Level 2: emojis rare
 - Level 3 (Rage Mode): NO emojis, NO GIFs — text only
 - GIFs are allowed ONLY when ending the exchange completely
   Format: [short description gif]

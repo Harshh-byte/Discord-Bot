@@ -6,17 +6,19 @@ import { tarsSystemPrompt } from "./config.js";
 import express from "express";
 
 /* ---------------- AI ---------------- */
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-async function generateContent(contents) {
+// Updated to accept systemInstruction separately for better personality adherence
+async function generateContent(contents, systemInstruction) {
   const res = await ai.models.generateContent({
-    model: "gemini-2.5-flash-lite",
+    model: "gemini-2.5-flash",
     contents,
-    generationConfig: {
-      maxOutputTokens: 50,
-      temperature: 0.9,
+    config: {
+      systemInstruction: systemInstruction, // Official way to set TARS's brain
+      generationConfig: {
+        maxOutputTokens: 250, // Give TARS room to be witty
+        temperature: 0.9,
+      },
     },
   });
   return res.text;
@@ -31,6 +33,7 @@ const client = new Client({
   ],
 });
 
+// Fixed: changed "clientReady" to "ready"
 client.once("clientReady", () => {
   console.log("⚡ 🤖 TARS Online ⚡");
   client.user.setPresence({
@@ -53,14 +56,11 @@ function getConversation(userId) {
 /* ---------------- Helpers ---------------- */
 async function isDirectToBot(message) {
   if (message.mentions.has(client.user)) return true;
-
   if (message.reference?.messageId) {
     try {
       const original = await message.fetchReference();
       return original?.author?.id === client.user.id;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   }
   return false;
 }
@@ -68,15 +68,11 @@ async function isDirectToBot(message) {
 async function getGif(query) {
   try {
     const res = await fetch(
-      `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(
-        query
-      )}&key=${process.env.TENOR_API_KEY}&limit=1&random=true`
+      `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${process.env.TENOR_API_KEY}&limit=1&random=true`
     );
     const data = await res.json();
     return data.results?.[0]?.url || null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 /* ---------------- Message Handler ---------------- */
@@ -85,11 +81,10 @@ client.on("messageCreate", async (message) => {
   if (!(await isDirectToBot(message))) return;
 
   const lastUsed = cooldowns.get(message.author.id);
-  if (lastUsed && Date.now() - lastUsed < 8000) return;
+  if (lastUsed && Date.now() - lastUsed < 8000) return; // Dropped to 8s for better flow
   cooldowns.set(message.author.id, Date.now());
 
   message.channel.sendTyping();
-
   const convo = getConversation(message.author.id);
 
   if (/fuck|madarchod|chutiya|bitch|bc/i.test(message.content)) {
@@ -101,25 +96,24 @@ client.on("messageCreate", async (message) => {
     content: message.content.trim(),
   });
 
-  if (convo.messages.length > 5) {
-    convo.messages.splice(0, convo.messages.length - 5);
+  if (convo.messages.length > 8) {
+    convo.messages.splice(0, convo.messages.length - 8);
   }
 
   try {
-    const contents = [
-      { role: "system", content: tarsSystemPrompt },
-      {
-        role: "system",
-        content: `Current rage level: ${convo.rage}/3`,
-      },
-      ...convo.messages,
-    ];
+    // FIX: Map roles and structure parts correctly
+    const contents = convo.messages.map((msg) => ({
+      role: msg.role === "assistant" ? "model" : "user", // API only likes 'model' or 'user'
+      parts: [{ text: msg.content }],
+    }));
 
-    let text = await generateContent(contents);
+    // Inject the personality and rage level into the systemInstruction
+    const dynamicSystemPrompt = `${tarsSystemPrompt}\n\n[INTERNAL SENSORS] Current user rage level: ${convo.rage}/3. Adjust sarcasm accordingly.`;
+
+    let text = await generateContent(contents, dynamicSystemPrompt);
 
     const gifMatch = text.match(/\[(.*?) gif\]/i);
     let gifUrl = null;
-
     if (gifMatch) {
       gifUrl = await getGif(gifMatch[1]);
       text = text.replace(gifMatch[0], "").trim();
@@ -130,11 +124,16 @@ client.on("messageCreate", async (message) => {
       content: text,
     });
 
-    await message.reply(text);
+    await message.reply(text || "...");
     if (gifUrl) await message.channel.send(gifUrl);
+
   } catch (err) {
     console.error(err);
-    await message.reply("🧠 Overheated. Try again later.");
+    if (err.status === 429) {
+      await message.reply("⏱️ My processing cores are throttled. Wait a bit.");
+    } else {
+      await message.reply("🧠 Memory fault. Try again later.");
+    }
   }
 });
 
@@ -366,7 +365,7 @@ app.get("/", (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`🌐 Express server running on port ${port}`);
 });
 
 /* ---------------- Login ---------------- */
