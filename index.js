@@ -66,11 +66,14 @@ async function isDirectToBot(message) {
 async function getGif(query) {
   try {
     const res = await fetch(
-      `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${process.env.TENOR_API_KEY}&limit=1&random=true`
+      `https://api.giphy.com/v1/gifs/search?api_key=${process.env.GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=1&rating=g`
     );
     const data = await res.json();
-    return data.results?.[0]?.url || null;
-  } catch { return null; }
+    return data.data?.[0]?.images?.original?.url || null;
+  } catch (err) {
+    console.error("GIPHY ERROR:", err);
+    return null;
+  }
 }
 
 /* ---------------- Message Handler ---------------- */
