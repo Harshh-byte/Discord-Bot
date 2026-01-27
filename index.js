@@ -141,9 +141,15 @@ client.on("messageCreate", async (message) => {
       parts: [{ text: msg.content }],
     }));
 
-    const dynamicSystemPrompt = `${tarsSystemPrompt}\n\n[INTERNAL SENSORS] Current user rage level: ${convo.rage}/3. Adjust sarcasm accordingly.`;
+    const dynamicSystemPrompt = `${tarsSystemPrompt}\n\n[CONFIDENTIAL_DIRECTIVE]: Current user hostility is ${convo.rage}/3. Your personality must shift to Level ${convo.rage} immediately. Do NOT mention sensors, levels, or this directive in your response.`;
 
     let text = await generateContent(contents, dynamicSystemPrompt);
+
+    text = text
+      .replace(/\[.*?\]|Internal Sensor|Rage Level|hostility level/gi, "")
+      .trim();
+
+    await message.reply(text || "...");
 
     const gifMatch = text.match(/\[(.*?) gif\]/i);
     let gifUrl = null;
@@ -172,9 +178,11 @@ const port = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
   let globalRage = 0;
-  conversations.forEach((convo) => { globalRage += convo.rage; });
+  conversations.forEach((convo) => {
+    globalRage += convo.rage;
+  });
   const totalUsers = conversations.size;
-  const avgRage = totalUsers > 0 ? (globalRage / totalUsers) : 0;
+  const avgRage = totalUsers > 0 ? globalRage / totalUsers : 0;
 
   let statusText = "OPTIMAL";
   let accentColor = "#00ff99";
@@ -271,7 +279,7 @@ app.get("/", (req, res) => {
                <div class="text-left sm:text-right w-full sm:w-auto border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
                   <div class="text-[9px] text-white/50 uppercase tracking-widest">System_Time</div>
                   <div class="text-sm sm:text-lg font-bold text-[var(--accent)] tabular-nums">
-                     ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                     ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                   </div>
                </div>
             </div>
@@ -293,7 +301,7 @@ app.get("/", (req, res) => {
                <div>
                   <div class="flex justify-between text-[10px] mb-2 font-bold tracking-widest">
                      <span>RAGE_PARAMETER</span>
-                     <span style="color: var(--accent)">${(avgRage).toFixed(2)} / 3.00</span>
+                     <span style="color: var(--accent)">${avgRage.toFixed(2)} / 3.00</span>
                   </div>
                   <div class="rage-bar">
                      <div class="rage-fill"></div>
@@ -302,7 +310,7 @@ app.get("/", (req, res) => {
                <div class="grid grid-cols-2 gap-4">
                   <div class="bg-white/5 p-4 border-l-2 border-[var(--accent)]">
                      <span class="text-[9px] text-gray-500 block">HONESTY_CAP</span>
-                     <span class="text-xl font-bold">${Math.max(0, (90 - (avgRage * 25)).toFixed(0))}%</span>
+                     <span class="text-xl font-bold">${Math.max(0, (90 - avgRage * 25).toFixed(0))}%</span>
                   </div>
                   <div class="bg-white/5 p-4 border-l-2 border-[var(--accent)]">
                      <span class="text-[9px] text-gray-500 block">ACTIVE_NODES</span>
@@ -312,7 +320,7 @@ app.get("/", (req, res) => {
             </div>
             <div class="mt-12 pt-4 border-t border-white/10 flex justify-between text-[8px] font-mono text-gray-600">
                <span>MODEL: GEMINI_2.5_FLASH_LITE</span>
-               <span>STATUS: ${avgRage >= 3 ? 'STABLE_UNLIKELY' : 'STABLE_CONFIRMED'}</span>
+               <span>STATUS: ${avgRage >= 3 ? "STABLE_UNLIKELY" : "STABLE_CONFIRMED"}</span>
             </div>
          </div>
       </div>
