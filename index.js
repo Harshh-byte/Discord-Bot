@@ -211,7 +211,7 @@ app.get("/", (req, res) => {
       <link
          rel="icon"
          type="image/png"
-         href="https://img.icons8.com/ios-filled/50/grok.png"
+         href="https://img.icons8.com/color/48/grok--v2.png"
          />
       <style>
          :root { --accent: ${accentColor}; }
