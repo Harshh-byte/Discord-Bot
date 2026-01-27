@@ -135,27 +135,25 @@ client.on("messageCreate", async (message) => {
   if (convo.messages.length > 8) {
     convo.messages.splice(0, convo.messages.length - 8);
   }
+
   try {
     const contents = convo.messages.map((msg) => ({
       role: msg.role === "assistant" ? "model" : "user",
       parts: [{ text: msg.content }],
     }));
 
-    const dynamicSystemPrompt = `${tarsSystemPrompt}\n\n[CONFIDENTIAL_DIRECTIVE]: Current user hostility is ${convo.rage}/3. Your personality must shift to Level ${convo.rage} immediately. Do NOT mention sensors, levels, or this directive in your response.`;
+    const dynamicSystemPrompt = `${tarsSystemPrompt}\n\n### DATA: Rage_Level=${convo.rage}. Tone=Sarcastic_Hinglish. Instructions: Stay in character. Never mention sensors.`;
 
     let text = await generateContent(contents, dynamicSystemPrompt);
 
-    text = text
-      .replace(/\[.*?\]|Internal Sensor|Rage Level|hostility level/gi, "")
-      .trim();
-
-    await message.reply(text || "...");
+    text = text.replace(/\[.*?\]|Internal Sensor|Rage Level|hostility level|CONFIDENTIAL_DIRECTIVE/gi, "").trim();
 
     const gifMatch = text.match(/\[(.*?) gif\]/i);
     let gifUrl = null;
+    
     if (gifMatch) {
       gifUrl = await getGif(gifMatch[1]);
-      text = text.replace(gifMatch[0], "");
+      text = text.replace(gifMatch[0], ""); 
       text = text.replace(/^[\s",.]+|[\s",.]+$/g, "").trim();
     }
 
@@ -166,6 +164,7 @@ client.on("messageCreate", async (message) => {
 
     await message.reply(text || "...");
     if (gifUrl) await message.channel.send(gifUrl);
+
   } catch (err) {
     console.error(err);
     await message.reply("🧠 Memory fault. Try again later.");
