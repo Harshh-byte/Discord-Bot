@@ -10,14 +10,13 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 async function generateContent(contents, systemInstruction) {
   const res = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.5-flash-lite",
     contents,
     config: {
       systemInstruction: systemInstruction,
-      generationConfig: {
-        maxOutputTokens: 250,
-        temperature: 0.9,
-      },
+      maxOutputTokens: 250,
+      temperature: 0.9,
+      thinkingConfig: { includeThoughts: false, thinkingBudget: 0 },
     },
   });
   return res.text;
@@ -30,14 +29,20 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
   ],
+  presence: {
+    status: "online",
+    activities: [
+      {
+        name: "the server gossip",
+        type: ActivityType.Listening,
+      },
+    ],
+  },
 });
 
 client.once("clientReady", () => {
   console.log("⚡ 🤖 TARS Online ⚡");
-  client.user.setPresence({
-    activities: [{ name: "the server gossip", type: ActivityType.Listening }],
-    status: "online",
-  });
+  updateTarsStatus(0);
 });
 
 /* ---------------- Memory ---------------- */
@@ -58,7 +63,9 @@ async function isDirectToBot(message) {
     try {
       const original = await message.fetchReference();
       return original?.author?.id === client.user.id;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
   return false;
 }
@@ -66,7 +73,7 @@ async function isDirectToBot(message) {
 async function getGif(query) {
   try {
     const res = await fetch(
-      `https://api.giphy.com/v1/gifs/search?api_key=${process.env.GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=1&rating=g`
+      `https://api.giphy.com/v1/gifs/search?api_key=${process.env.GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=1&rating=g`,
     );
     const data = await res.json();
     return data.data?.[0]?.images?.original?.url || null;
@@ -77,6 +84,26 @@ async function getGif(query) {
 }
 
 /* ---------------- Message Handler ---------------- */
+async function updateTarsStatus(rage) {
+  let status = "online";
+  let activity = { name: "the server gossip", type: ActivityType.Listening };
+
+  if (rage === 1) {
+    activity = { name: "your confidence slip", type: ActivityType.Watching };
+  } else if (rage === 2) {
+    status = "idle";
+    activity = { name: "egos shatter", type: ActivityType.Watching };
+  } else if (rage >= 3) {
+    status = "dnd";
+    activity = { name: "verbal destruction", type: ActivityType.Playing };
+  }
+
+  client.user.setPresence({
+    status,
+    activities: [activity],
+  });
+}
+
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
   if (!(await isDirectToBot(message))) return;
@@ -88,9 +115,17 @@ client.on("messageCreate", async (message) => {
   message.channel.sendTyping();
   const convo = getConversation(message.author.id);
 
-  if (/fuck|madarchod|chutiya|bitch|bc|stfu/i.test(message.content)) {
-    convo.rage++;
+  const mildTriggers = ["idiot", "dumb", "stfu"];
+  const heavyTriggers = ["fuck", "madarchod", "chutiya", "bitch", "bc"];
+  const content = message.content.toLowerCase();
+
+  if (heavyTriggers.some((word) => content.includes(word))) {
+    convo.rage += 2;
+  } else if (mildTriggers.some((word) => content.includes(word))) {
+    convo.rage += 1;
   }
+  if (convo.rage > 3) convo.rage = 3;
+  updateTarsStatus(convo.rage);
 
   convo.messages.push({
     role: "user",
@@ -100,7 +135,6 @@ client.on("messageCreate", async (message) => {
   if (convo.messages.length > 8) {
     convo.messages.splice(0, convo.messages.length - 8);
   }
-
   try {
     const contents = convo.messages.map((msg) => ({
       role: msg.role === "assistant" ? "model" : "user",
@@ -115,7 +149,8 @@ client.on("messageCreate", async (message) => {
     let gifUrl = null;
     if (gifMatch) {
       gifUrl = await getGif(gifMatch[1]);
-      text = text.replace(gifMatch[0], "").trim();
+      text = text.replace(gifMatch[0], "");
+      text = text.replace(/^[\s",.]+|[\s",.]+$/g, "").trim();
     }
 
     convo.messages.push({
@@ -125,14 +160,9 @@ client.on("messageCreate", async (message) => {
 
     await message.reply(text || "...");
     if (gifUrl) await message.channel.send(gifUrl);
-
   } catch (err) {
     console.error(err);
-    if (err.status === 429) {
-      await message.reply("⏱️ My processing cores are throttled. Wait a bit.");
-    } else {
-      await message.reply("🧠 Memory fault. Try again later.");
-    }
+    await message.reply("🧠 Memory fault. Try again later.");
   }
 });
 
@@ -141,226 +171,156 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
+  let globalRage = 0;
+  conversations.forEach((convo) => { globalRage += convo.rage; });
+  const totalUsers = conversations.size;
+  const avgRage = totalUsers > 0 ? (globalRage / totalUsers) : 0;
+
+  let statusText = "OPTIMAL";
+  let accentColor = "#00ff99";
+  let glowColor = "rgba(0, 255, 153, 0.2)";
+  let isGlitching = "";
+
+  if (avgRage >= 3) {
+    statusText = "VERBAL DESTRUCTION";
+    accentColor = "#ff003c";
+    glowColor = "rgba(255, 0, 60, 0.3)";
+    isGlitching = "glitch-anim";
+  } else if (avgRage >= 2) {
+    statusText = "STRESSED";
+    accentColor = "#ffaa00";
+    glowColor = "rgba(255, 170, 0, 0.2)";
+  }
+
   res.send(`
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TARS | Bot Status</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="icon"
-      type="image/png"
-      href="https://img.icons8.com/color/48/grok--v2.png"
-    />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
-      body {
-        min-height: 100vh;
-        min-width: 100vw;
-      }
-      .glow-card {
-        box-shadow: 0 0 32px 8px #22c55e44, 0 2px 16px 0 #000a;
-      }
-    </style>
-  </head>
-  <body
-    class="relative flex items-center justify-center h-screen w-screen overflow-hidden"
-  >
-    <div
-      class="absolute inset-0 -z-10 animate-gradient bg-gradient-to-br from-[#10141c] via-[#232b3a] to-[#3b82f6] opacity-100"
-    ></div>
-    <main
-      class="w-full max-w-lg mx-auto rounded-2xl glow-card bg-[#232b3a] p-6 sm:p-10 flex flex-col items-center justify-center border border-[#2e374d] shadow-2xl"
-      style="box-shadow: 0 0 32px 8px #22c55e44, 0 2px 16px 0 #000a"
-    >
-      <div class="flex items-center gap-3 mb-6">
-        <span
-          class="text-4xl font-extrabold text-[#5b7fff] tracking-wide drop-shadow-lg animate-pulse"
-          >TARS</span
-        >
-        <span
-          style="font-size: 2em"
-          class="h-11 w-11 text-[#5b7fff] drop-shadow-lg animate-bounce"
-          >🤖</span
-        >
+   <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>TARS | Core Terminal</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+      <link
+         rel="icon"
+         type="image/png"
+         href="https://img.icons8.com/color/48/grok--v2.png"
+         />
+      <style>
+         :root { --accent: ${accentColor}; }
+         body { 
+         background-color: #050505; 
+         font-family: 'Fira Code', monospace;
+         color: white;
+         overflow: hidden;
+         background-image: 
+         linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+         linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+         background-size: 100% 2px, 3px 100%;
+         }
+         /* Glitch Animation for Rage Level 3 */
+         .glitch-anim {
+         animation: shake 0.2s infinite;
+         text-shadow: 2px 0 #ff003c, -2px 0 #00ffff;
+         }
+         @keyframes shake {
+         0% { transform: translate(0); }
+         20% { transform: translate(-2px, 2px); }
+         40% { transform: translate(-2px, -2px); }
+         60% { transform: translate(2px, 2px); }
+         80% { transform: translate(2px, -2px); }
+         100% { transform: translate(0); }
+         }
+         .cyber-border {
+         border: 1px solid var(--accent);
+         box-shadow: 0 0 15px ${glowColor}, inset 0 0 15px ${glowColor};
+         clip-path: polygon(0 0, 95% 0, 100% 5%, 100% 100%, 5% 100%, 0 95%);
+         }
+         .grid-bg {
+         background-image: linear-gradient(rgba(0, 255, 153, 0.05) 1px, transparent 1px),
+         linear-gradient(90deg, rgba(0, 255, 153, 0.05) 1px, transparent 1px);
+         background-size: 30px 30px;
+         position: absolute; width: 100%; height: 100%; z-index: -1;
+         }
+         .rage-bar {
+         height: 10px;
+         background: #111;
+         position: relative;
+         border: 1px solid rgba(255,255,255,0.1);
+         }
+         .rage-fill {
+         height: 100%;
+         width: ${(Math.min(avgRage, 3) / 3) * 100}%;
+         background: var(--accent);
+         transition: width 0.5s ease-in-out;
+         }
+      </style>
+   </head>
+   <body class="flex items-center justify-center min-h-screen">
+      <div class="grid-bg"></div>
+      <div class="w-full max-w-2xl p-4">
+         <div class="cyber-border bg-black/80 p-8 relative overflow-hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start mb-8 sm:mb-12 border-b border-white/10 pb-4 gap-4">
+               <div>
+                  <div class="flex items-center gap-3">
+                     <h1 class="text-2xl sm:text-4xl font-bold tracking-widest ${isGlitching}">TARS v3.0</h1>
+                     <span class="px-2 py-0.5 bg-[var(--accent)]/10 text-[var(--accent)] text-[10px] font-bold rounded border border-[var(--accent)]/20">PRO</span>
+                  </div>
+                  <p class="text-[8px] sm:text-[10px] text-gray-500 mt-1 uppercase tracking-tight">System Core // Verbal Destruction Module Loaded</p>
+               </div>
+               <div class="text-left sm:text-right w-full sm:w-auto border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
+                  <div class="text-[9px] text-white/50 uppercase tracking-widest">System_Time</div>
+                  <div class="text-sm sm:text-lg font-bold text-[var(--accent)] tabular-nums">
+                     ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </div>
+               </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+               <div class="col-span-2">
+                  <label class="text-[10px] text-gray-500 block mb-2">NEURAL_CORE_STATE</label>
+                  <div class="text-5xl font-black ${isGlitching}" style="color: var(--accent)">
+                     ${statusText}
+                  </div>
+               </div>
+               <div class="flex flex-col justify-end items-end">
+                  <div class="w-16 h-16 rounded-full border-4 border-white/5 flex items-center justify-center relative">
+                     <div class="absolute w-full h-full rounded-full border-2 border-[var(--accent)] animate-ping opacity-20"></div>
+                     <span class="text-2xl">🤖</span>
+                  </div>
+               </div>
+            </div>
+            <div class="space-y-6">
+               <div>
+                  <div class="flex justify-between text-[10px] mb-2 font-bold tracking-widest">
+                     <span>RAGE_PARAMETER</span>
+                     <span style="color: var(--accent)">${(avgRage).toFixed(2)} / 3.00</span>
+                  </div>
+                  <div class="rage-bar">
+                     <div class="rage-fill"></div>
+                  </div>
+               </div>
+               <div class="grid grid-cols-2 gap-4">
+                  <div class="bg-white/5 p-4 border-l-2 border-[var(--accent)]">
+                     <span class="text-[9px] text-gray-500 block">HONESTY_CAP</span>
+                     <span class="text-xl font-bold">${Math.max(0, (90 - (avgRage * 25)).toFixed(0))}%</span>
+                  </div>
+                  <div class="bg-white/5 p-4 border-l-2 border-[var(--accent)]">
+                     <span class="text-[9px] text-gray-500 block">ACTIVE_NODES</span>
+                     <span class="text-xl font-bold">${totalUsers}</span>
+                  </div>
+               </div>
+            </div>
+            <div class="mt-12 pt-4 border-t border-white/10 flex justify-between text-[8px] font-mono text-gray-600">
+               <span>MODEL: GEMINI_2.5_FLASH_LITE</span>
+               <span>STATUS: ${avgRage >= 3 ? 'STABLE_UNLIKELY' : 'STABLE_CONFIRMED'}</span>
+            </div>
+         </div>
       </div>
-      <p class="text-center text-lg text-gray-200 mb-8 font-medium">
-        Your AI-powered Discord companion is
-        <span class="text-[#5b7fff] font-bold">online</span> and ready to assist
-        with <span class="text-green-400 font-bold">style</span> and
-        <span class="text-pink-400 font-bold">efficiency</span>.
-      </p>
-      <div
-        class="flex flex-col lg:flex-row items-center lg:items-center gap-4 lg:gap-8 mb-6 w-full justify-center"
-      >
-        <span class="flex items-center gap-2 lg:gap-3 lg:items-center">
-          <span id="statusDot" class="status-dot"></span>
-          <span class="status-label">Status:</span>
-          <span id="status" class="status-chip">Online</span>
-        </span>
-        <span class="flex items-center gap-2 lg:gap-3 lg:items-center">
-          <span class="status-label">Health:</span>
-          <span id="health" class="health">Excellent</span>
-        </span>
-      </div>
-      <span id="lastChecked" class="text-sm text-[#94a3b8] mb-2"
-        >Last checked: <span id="lastCheckedTime">--</span></span
-      >
-      <span class="text-xs text-[#94a3b8] mt-4"
-        >© 2025 TARS . All rights reserved.</span
-      >
-    </main>
-    <script>
-      document.body.style.overflow = "hidden";
-      document.documentElement.style.overflow = "hidden";
-      function updateStatus() {
-        const statusEl = document.getElementById("status");
-        const healthEl = document.getElementById("health");
-        const lastCheckedEl = document.getElementById("lastCheckedTime");
-        const statusDot = document.getElementById("statusDot");
-        const isOnline = Math.random() > 0.1;
-        statusEl.textContent = isOnline ? "Online" : "Processing";
-        statusEl.className = isOnline
-          ? "status-chip"
-          : "status-chip bg-red-400 border-red-400 text-[#181f2a]";
-        healthEl.textContent = isOnline ? "Excellent" : "Poor";
-        healthEl.className = isOnline
-          ? "health bg-green-400 border-green-400 text-[#181f2a]"
-          : "health bg-yellow-400 border-yellow-400 text-[#181f2a]";
-        if (statusEl.textContent === "Online") {
-          statusDot.style.setProperty("--accent-color", "#22c55e");
-          statusDot.style.setProperty(
-            "--accent-shadow",
-            "rgba(34,197,94,0.15)"
-          );
-          statusDot.className = "status-dot";
-        } else {
-          statusDot.style.setProperty("--accent-color", "#ef4444");
-          statusDot.style.setProperty(
-            "--accent-shadow",
-            "rgba(239,68,68,0.15)"
-          );
-          statusDot.className = "status-dot";
-        }
-        const now = new Date();
-        lastCheckedEl.textContent = now.toLocaleString();
-      }
-      updateStatus();
-      setInterval(updateStatus, 10000);
-    </script>
-    <style>
-      .status-label {
-        font-size: 1.1rem;
-        font-weight: 500;
-        color: #e0e7ef;
-      }
-      .status-chip {
-        display: inline-block;
-        padding: 0.125rem 0.5rem;
-        border-radius: 999px;
-        background: rgba(56, 189, 248, 0.15);
-        border: 1px solid rgba(56, 189, 248, 0.35);
-        font-weight: 600;
-        font-size: 0.95em;
-        color: #e2e8f0;
-        transition: background 0.2s, border 0.2s, color 0.2s;
-      }
-      .health {
-        display: inline-block;
-        padding: 0.125rem 0.5rem;
-        border-radius: 999px;
-        border: 1px solid transparent;
-        font-weight: 600;
-        font-size: 0.95em;
-        color: #181f2a;
-        transition: background 0.2s, border 0.2s, color 0.2s;
-      }
-      @keyframes gradient {
-        0% {
-          background-position: 0% 50%;
-          filter: brightness(1.05);
-        }
-        25% {
-          background-position: 50% 100%;
-          filter: brightness(1.15);
-        }
-        50% {
-          background-position: 100% 50%;
-          filter: brightness(1.05);
-        }
-        75% {
-          background-position: 50% 0%;
-          filter: brightness(1.15);
-        }
-        100% {
-          background-position: 0% 50%;
-          filter: brightness(1.05);
-        }
-      }
-      .animate-gradient {
-        background-size: 200% 200%;
-        animation: gradient 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-      }
-      .status-dot {
-        position: relative;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: var(--accent-color);
-        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15),
-          0 0 10px var(--accent-color);
-        flex: 0 0 auto;
-        transition: background 0.2s;
-      }
-      .status-dot::after {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        background: var(--accent-color);
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 0.6;
-        pointer-events: none;
-        animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
-      }
-      @keyframes ping {
-        0% {
-          transform: translate(-50%, -50%) scale(1);
-          opacity: 0.6;
-        }
-        70% {
-          transform: translate(-50%, -50%) scale(2.2);
-          opacity: 0;
-        }
-        100% {
-          opacity: 0;
-        }
-      }
-      @media (max-width: 640px) {
-        main {
-          max-width: 95vw !important;
-          padding: 1.25rem !important;
-        }
-      }
-    </style>
-  </body>
-</html>
-`);
+      <script>
+         setInterval(() => { location.reload(); }, 15000);
+      </script>
+   </body>
+</html>`);
 });
 
 app.listen(port, () => {
