@@ -115,8 +115,8 @@ client.on("messageCreate", async (message) => {
   message.channel.sendTyping();
   const convo = getConversation(message.author.id);
 
-  const mildTriggers = ["idiot", "dumb", "stfu"];
-  const heavyTriggers = ["fuck", "madarchod", "chutiya", "bitch", "bc"];
+  const mildTriggers = ["idiot", "dumb", "stfu", "gtfo", "bitch"];
+  const heavyTriggers = ["fuck", "madarchod", "chutiya", "lodu", "bc", "mc"];
   const content = message.content.toLowerCase();
 
   if (heavyTriggers.some((word) => content.includes(word))) {
@@ -142,20 +142,26 @@ client.on("messageCreate", async (message) => {
       parts: [{ text: msg.content }],
     }));
 
-    const dynamicSystemPrompt = `${tarsSystemPrompt}\n\n### DATA: Rage_Level=${convo.rage}. Tone=Sarcastic_Hinglish. Instructions: Stay in character. Never mention sensors.`;
+    const dynamicSystemPrompt = `${tarsSystemPrompt}\n\n### DATA: Rage_Level=${convo.rage}. Tone=${convo.rage >= 2 ? "Unhinged_Hinglish" : "Sarcastic_Hinglish"}. Instructions: Stay in character. Never mention sensors, levels, or internal state.`;
 
     let text = await generateContent(contents, dynamicSystemPrompt);
 
-    text = text.replace(/\[.*?\]|Internal Sensor|Rage Level|hostility level|CONFIDENTIAL_DIRECTIVE/gi, "").trim();
-
     const gifMatch = text.match(/\[(.*?) gif\]/i);
     let gifUrl = null;
-    
+
     if (gifMatch) {
       gifUrl = await getGif(gifMatch[1]);
-      text = text.replace(gifMatch[0], ""); 
+      text = text.replace(gifMatch[0], "");
       text = text.replace(/^[\s",.]+|[\s",.]+$/g, "").trim();
     }
+
+    text = text
+      .replace(
+        /\[.*?\]|\[image:.*?\]|Internal Sensor|Rage Level|Rage_Level|hostility level|Tone|CONFIDENTIAL_DIRECTIVE|Level \d/gi,
+        "",
+      )
+      .replace(/\s{2,}/g, " ")
+      .trim();
 
     convo.messages.push({
       role: "assistant",
@@ -164,7 +170,6 @@ client.on("messageCreate", async (message) => {
 
     await message.reply(text || "...");
     if (gifUrl) await message.channel.send(gifUrl);
-
   } catch (err) {
     console.error(err);
     await message.reply("🧠 Memory fault. Try again later.");
