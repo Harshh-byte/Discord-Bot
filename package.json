@@ -1,8 +1,8 @@
 {
-  "name": "cohort",
+  "name": "tars-bot",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "tars.js",
   "type": "module",
   "keywords": [],
   "author": "",
@@ -15,7 +15,7 @@
     "node-fetch": "^3.3.2"
   },
   "scripts": {
-    "start": "node index.js",
+    "start": "node tars.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   }
 }
