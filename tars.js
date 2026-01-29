@@ -115,8 +115,8 @@ client.on("messageCreate", async (message) => {
   message.channel.sendTyping();
   const convo = getConversation(message.author.id);
 
-  const mildTriggers = ["idiot", "dumb", "stfu", "gtfo", "bitch"];
-  const heavyTriggers = ["fuck", "madarchod", "chutiya", "lodu", "bc", "mc"];
+  const mildTriggers = ["idiot", "dumb", "stfu", "gtfo", "bitch", "fuck"];
+  const heavyTriggers = ["chutiye", "lode", "bc", "mc", "bkl"];
   const content = message.content.toLowerCase();
 
   if (heavyTriggers.some((word) => content.includes(word))) {
@@ -146,7 +146,8 @@ client.on("messageCreate", async (message) => {
 
     let text = await generateContent(contents, dynamicSystemPrompt);
 
-    const gifMatch = text.match(/\[(.*?) gif\]/i);
+    const gifMatch =
+      text && typeof text === "string" ? text.match(/\[(.*?) gif\]/i) : null;
     let gifUrl = null;
 
     if (gifMatch) {
