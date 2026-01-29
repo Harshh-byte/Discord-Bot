@@ -70,19 +70,6 @@ async function isDirectToBot(message) {
   return false;
 }
 
-async function getGif(query) {
-  try {
-    const res = await fetch(
-      `https://api.giphy.com/v1/gifs/search?api_key=${process.env.GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=1&rating=g`,
-    );
-    const data = await res.json();
-    return data.data?.[0]?.images?.original?.url || null;
-  } catch (err) {
-    console.error("GIPHY ERROR:", err);
-    return null;
-  }
-}
-
 /* ---------------- Message Handler ---------------- */
 async function updateTarsStatus(rage) {
   let status = "online";
@@ -146,16 +133,6 @@ client.on("messageCreate", async (message) => {
 
     let text = await generateContent(contents, dynamicSystemPrompt);
 
-    const gifMatch =
-      text && typeof text === "string" ? text.match(/\[(.*?) gif\]/i) : null;
-    let gifUrl = null;
-
-    if (gifMatch) {
-      gifUrl = await getGif(gifMatch[1]);
-      text = text.replace(gifMatch[0], "");
-      text = text.replace(/^[\s",.]+|[\s",.]+$/g, "").trim();
-    }
-
     text = text
       .replace(
         /\[.*?\]|\[image:.*?\]|Internal Sensor|Rage Level|Rage_Level|hostility level|Tone|CONFIDENTIAL_DIRECTIVE|Level \d/gi,
@@ -170,7 +147,6 @@ client.on("messageCreate", async (message) => {
     });
 
     await message.reply(text || "...");
-    if (gifUrl) await message.channel.send(gifUrl);
   } catch (err) {
     console.error(err);
     await message.reply("🧠 Memory fault. Try again later.");
