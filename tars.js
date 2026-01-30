@@ -132,26 +132,95 @@ app.get("/", (req, res) => {
 
   res.send(`
     <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Tars Status</title>
-      <link rel="icon" type="image/png" href="https://img.icons8.com/color/48/robot-2.png">
-      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-      <style>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TARS Status</title>
+    <link rel="icon" type="image/png" href="https://img.icons8.com/color/48/robot-2.png">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
         body {
-          background: #000;
-          color: #fff;
-          font-family: 'JetBrains Mono', monospace;
-          padding: 20px;
-          line-height: 1.6;
+            background: #000;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 40px;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 80vh;
         }
-      </style>
-    </head>
-    <body>
-      TARS is Alive.<br>
-      TIME: ${time.full}
-    </body>
-    </html>
+
+        #status-container {
+            border-left: 3px solid #fff;
+            padding-left: 20px;
+        }
+
+        .status-line {
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        #timestamp {
+            color: #888;
+            font-size: 1.2rem;
+        }
+
+        /* Subtle blinking cursor effect for that terminal feel */
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2rem;
+            background: #fff;
+            animation: blink 1s infinite;
+            vertical-align: middle;
+            margin-left: 5px;
+        }
+
+        @keyframes blink {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="status-container">
+        <div class="status-line">TARS IS ALIVE<span class="cursor"></span></div>
+        <div id="timestamp">INITIALIZING SYSTEM CLOCK...</div>
+    </div>
+
+    <script>
+        function updateTarsTime() {
+            const now = new Date();
+            
+            // Formatting options for a clean, technical look
+            const options = { 
+                weekday: 'short', 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit',
+                hour12: false // 24-hour clock feels more like TARS
+            };
+
+            const timeString = now.toLocaleString('en-US', options).toUpperCase();
+            document.getElementById('timestamp').innerText = "SYSTEM TIME: " + timeString;
+        }
+
+        // Update immediately on load
+        updateTarsTime();
+        
+        // Update every 1 second
+        setInterval(updateTarsTime, 1000);
+    </script>
+</body>
+</html>
   `);
 });
 app.listen(process.env.PORT || 3000, () => console.log(`🌐 Server running`));
