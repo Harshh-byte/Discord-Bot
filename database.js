@@ -1,7 +1,6 @@
 import admin from "firebase-admin";
 import { readFileSync } from "fs";
 
-const serviceAccountPath = resolve(process.cwd(), 'serviceAccountKey.json');
 const serviceAccount = JSON.parse(readFileSync("./serviceAccountKey.json"));
 
 admin.initializeApp({
