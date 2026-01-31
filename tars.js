@@ -34,8 +34,8 @@ const client = new Client({
 client.once("clientReady", () => {
   console.log("🤖 TARS Online");
   client.user.setPresence({
-    status: "idle",
-    activities: [{ name: "egos shatter", type: ActivityType.Watching }],
+    status: "dnd",
+    activities: [{ name: "your next bad take", type: ActivityType.Watching }],
   });
 });
 
