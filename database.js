@@ -17,12 +17,10 @@ export async function getConversation(userId) {
     const snapshot = await usersRef.child(userId).get();
     if (snapshot.exists()) {
       const data = snapshot.val();
-      // Ensure essential arrays/objects exist
       if (!data.messages) data.messages = [];
       if (!data.profile) data.profile = {};
       return data;
     } else {
-      // NEW: Removed 'rage: 0' from the initial object
       const newUser = { messages: [], profile: {} };
       await usersRef.child(userId).set(newUser);
       return newUser;
@@ -35,7 +33,15 @@ export async function getConversation(userId) {
 
 export async function saveConversation(userId, data) {
   try {
+    if (data.messages && Array.isArray(data.messages)) {
+      
+      if (data.messages.length > 10) {
+        data.messages = data.messages.slice(-10);
+      }
+    }
+
     await usersRef.child(userId).update(data);
+    
   } catch (error) {
     console.error("Firebase Save Error:", error);
   }
