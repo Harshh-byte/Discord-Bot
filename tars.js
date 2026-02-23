@@ -137,7 +137,7 @@ app.get("/", (req, res) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TARS Status</title>
-    <link rel="icon" type="image/png" href="https://img.icons8.com/color/48/robot-2.png">
+    <link rel="icon" type="image/png" href="https://img.icons8.com/color/144/grok--v2.png">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
