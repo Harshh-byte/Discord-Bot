@@ -32,7 +32,7 @@ const client = new Client({
 });
 
 client.once("clientReady", () => {
-  console.log("🤖 TARS Online");
+  console.log("🤖 TARS online");
   client.user.setPresence({
     status: "dnd",
     activities: [{ name: "your next bad take", type: ActivityType.Watching }],

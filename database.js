@@ -6,7 +6,7 @@ const serviceAccount = JSON.parse(readFileSync("./serviceAccountKey.json"));
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL:
-    "https://tars-discord-bot-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    "https://tars-db-default-rtdb.asia-southeast1.firebasedatabase.app/",
 });
 
 const db = admin.database();
