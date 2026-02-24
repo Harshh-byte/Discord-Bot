@@ -121,7 +121,7 @@ client.on("messageCreate", async (message) => {
     await message.reply(text || "...");
   } catch (err) {
     console.error("AI Error:", err);
-    await message.reply("🧠 Memory fault. Try again later.");
+    await message.reply("I'm drawing a blank. Try again later.");
   }
 });
 
