@@ -26,6 +26,7 @@ async function generateContent(contents, systemInstruction) {
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
   ],
@@ -80,6 +81,36 @@ client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
   if (!(await isDirectToBot(message))) return;
 
+  const MALE_ROLE_ID = "1283084809912193055";
+  const FEMALE_ROLE_ID = "1283084870431805561";
+
+  const member = message.member;
+
+  const mentionedUsers = message.mentions.users;
+  const hasRoastKeyword = /\broast\b/i.test(message.content);
+
+  let roastTarget = null;
+
+  if (hasRoastKeyword && mentionedUsers.size >= 1) {
+    roastTarget = mentionedUsers.find((user) => user.id !== client.user.id);
+  }
+
+  if (roastTarget) {
+    if (roastTarget.id === message.author.id) {
+      return message.reply({
+        content: "Self-roast arc is wild.",
+        allowedMentions: { parse: [] },
+      });
+    }
+
+    if (roastTarget.id === client.user.id) {
+      return message.reply({
+        content: "You think I’d roast myself? Delusion.",
+        allowedMentions: { parse: [] },
+      });
+    }
+  }
+
   const lastUsed = cooldowns.get(message.author.id);
   if (lastUsed && Date.now() - lastUsed < 8000) return;
   cooldowns.set(message.author.id, Date.now());
@@ -99,20 +130,38 @@ client.on("messageCreate", async (message) => {
 
     const currentTime = getTarsTime();
 
+    let toneProfile = "neutral";
+
+    if (member?.roles?.cache?.has(MALE_ROLE_ID)) {
+      toneProfile = "alpha-homie";
+    } else if (member?.roles?.cache?.has(FEMALE_ROLE_ID)) {
+      toneProfile = "smooth-dominant";
+    }
+
     const dynamicSystemPrompt = `${tarsSystemPrompt}
+
+    ### USER_CONTEXT:
+    - Tone_Profile: ${toneProfile}
+
+    Tone Profiles:
+    - alpha-homie: Talk like a confident homie. Direct, competitive, playful dominance.
+    - smooth-dominant: Confident, sharp, slightly smoother energy. Still savage if provoked.
+    - neutral: Default dominant TARS personality.
+
+    Never awkwardly mention gender.
+    Tone shift must be noticeable but natural. Never identical across profiles.
 
     ### LIVE_DATA:
     - Current_Time: ${currentTime.time}
     - Current_Date: ${currentTime.date}
     - Location: India (IST)
-    [Instruction: Respond in a savage Desi style. Use Hinglish if appropriate.]
     `;
 
     let text = await generateContent(contents, dynamicSystemPrompt);
 
     text = text
       .replace(/\[.*?\]/g, "")
-      .replace(/(Rage|Level|Status|System|DATABASE|Internal):?\s*\d?/gi, "")
+      .replace(/(Status|System|DATABASE|Internal):?\s*\d?/gi, "")
       .replace(/\s{2,}/g, " ")
       .trim();
 
@@ -197,7 +246,6 @@ app.get("/", (req, res) => {
         function updateTarsTime() {
             const now = new Date();
             
-            // Formatting options for a clean, technical look
             const options = { 
                 weekday: 'short', 
                 year: 'numeric', 
@@ -206,17 +254,15 @@ app.get("/", (req, res) => {
                 hour: '2-digit', 
                 minute: '2-digit', 
                 second: '2-digit',
-                hour12: false // 24-hour clock feels more like TARS
+                hour12: false
             };
 
             const timeString = now.toLocaleString('en-US', options).toUpperCase();
             document.getElementById('timestamp').innerText = "SYSTEM TIME: " + timeString;
         }
 
-        // Update immediately on load
         updateTarsTime();
         
-        // Update every 1 second
         setInterval(updateTarsTime, 1000);
     </script>
 </body>
