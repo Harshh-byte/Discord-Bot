@@ -19,7 +19,18 @@ async function generateContent(contents, systemInstruction) {
       tools: [{ googleSearch: {} }],
     },
   });
-  return res.text;
+
+  const candidate = res.candidates?.[0];
+  const parts = candidate?.content?.parts || [];
+
+  const text = parts
+    .map((p) => p.text || "")
+    .join("")
+    .trim();
+
+  text = text.replace(/\(user has.*?\)/gi, "").trim();
+
+  return text;
 }
 
 /* ---------------- Discord ---------------- */
@@ -161,7 +172,6 @@ client.on("messageCreate", async (message) => {
 
     text = text
       .replace(/\[.*?\]/g, "")
-      .replace(/(Status|System|DATABASE|Internal):?\s*\d?/gi, "")
       .replace(/\s{2,}/g, " ")
       .trim();
 
