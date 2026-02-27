@@ -23,7 +23,7 @@ async function generateContent(contents, systemInstruction) {
   const candidate = res.candidates?.[0];
   const parts = candidate?.content?.parts || [];
 
-  const text = parts
+  let text = parts
     .map((p) => p.text || "")
     .join("")
     .trim();
